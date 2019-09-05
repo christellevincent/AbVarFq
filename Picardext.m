@@ -339,7 +339,7 @@ intrinsic PicardGroup(S::AlgAssVOrd : LMFDB_generators := false) -> GrpAb, Map
         //id:=CoprimeRepresentative(id,F)*id;
         idO := O!id;
         assert IsIntegral(idO);
-        if not IsCoprime(id,F) then
+        if not IsCoprime(id,FO) then
             error "PicardGroup: Ideal must be coprime to the conductor";
         end if;
         GOrep := idO@@gO;
@@ -377,7 +377,7 @@ intrinsic PicardGroup(S::AlgAssVOrd : LMFDB_generators := false) -> GrpAb, Map
 
         _, O_asProd := IsProductOfOrders(O);
         _, F_asProd := IsProductOfIdeals(F);
-        F_indexes := [Index(I) : I in F_asProd];
+        F_indexes := [Index(MultiplicatorRing(I),I) : I in F_asProd];
         primes_above_p := AssociativeArray(); // <i, p> -> list of primes above p in O_asProd[i]
 
         best_of_order := AssociativeArray(); // order -> j, where prime_list[j] is the smallest prime ideal with specified order in picard group
