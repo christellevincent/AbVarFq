@@ -9,77 +9,61 @@ freeze;
 import "usefulfunctions.m": AllPossibilities;
 import "sorting/code/sorting.m": SplitPrime;
 
-/* LIST of function
-intrinsic ResidueRingUnits(S::AlgAssVOrd,I::AlgAssVOrdIdl) -> GrpAb,Map
-residue_class_field_primitive_element := function(P)
-residue_class_ring_unit_subgroup_generators:=function(S, F)
-PicardGroup_prod_internal:=function(O)
-intrinsic PicardGroup(S::AlgAssVOrd) -> GrpAb, Map
-UnitGroup2_prod_internal:=function(O)
-intrinsic UnitGroup2(S::AlgAssVOrd) -> GrpAb, Map
-IsPrincipal_prod_internal:=function(I)
-intrinsic IsPrincipal(I::AlgAssVOrdIdl)->BoolElt, AlgAssElt
-*/
-
 /*TODO:
--The picard Groups intrinsic is much slower than the in built one. Investigate!
 -Discrete Log in ResidueRingUnits (is it necessary?)
--Discrete Log for PicardGroup (it seems that I have already implemented it for PicardGroup_prod)
 */
 
 declare attributes AlgAssVOrd:PicardGroup;
+declare attributes AlgAssVOrd:PicardGroup_LMFDB;
 declare attributes AlgAssVOrd:UnitGroup;
 
 intrinsic ResidueRingUnits(S::AlgAssVOrd,I::AlgAssVOrdIdl) -> GrpAb,Map
 {returns the group (S/I)^* and a map (S/I)^* -> S. It is required S to be maximal }
-	require IsFiniteEtale(Algebra(S)): "the algebra of definition must be finite and etale over Q";
-	//the following code works only for maximal orders in etale algebras that are not number fields
-	require IsMaximal(S): "implemented only for the maximal order";
-	test,I_asProd:=IsProductOfIdeals(I);
-	assert test; //we are assuming that Algebra(S) is not a number field
-	A:=Algebra(S);
-	n:=#I_asProd;
-	ray_res_rings:=[];
-	ray_res_rings_maps:=[**];
-	for i in [1..n] do
-		IL:=I_asProd[i];
-		OL:=Order(IL);
-		assert IsMaximal(OL);
-		R,r:=RayResidueRing(IL);
-		Append(~ray_res_rings,R);
-		Append(~ray_res_rings_maps,r);
-	end for;
-	D,mRD,mDR:=DirectSum(ray_res_rings);
-	map_ResRing_S:=function(x)
-		return &+[A`NumberFields[i,2](ray_res_rings_maps[i](mDR[i](x))) : i in [1..n]];
-	end function;
-	map_S_ResRing:=function(y)
-		if not y in S then
-			error "the element is not in the order";
-		end if;
-		comp:=Components(y);
-		assert #ray_res_rings_maps eq #comp;
-		assert2 forall{i : i in [1..n] | comp[i] in Codomain(ray_res_rings_maps[i])};
-		return &+[mRD[i](comp[i]@@ray_res_rings_maps[i]) : i in [1..n]];
-	end function;
-	map:=map<D -> A | x:->map_ResRing_S(x) , y:->map_S_ResRing(y) >;
-	assert2 forall{ gen: gen in Generators(D) | (map(gen))@@map eq gen };
-	return D,map;
+    require IsFiniteEtale(Algebra(S)): "the algebra of definition must be finite and etale over Q";
+    //the following code works only for maximal orders in etale algebras
+    require IsMaximal(S): "implemented only for the maximal order";
+    test,I_asProd:=IsProductOfIdeals(I);
+    assert test;
+    A:=Algebra(S);
+    n:=#I_asProd;
+    ray_res_rings:=[];
+    ray_res_rings_maps:=[**];
+    for i in [1..n] do
+        IL:=I_asProd[i];
+        OL:=Order(IL);
+        assert IsMaximal(OL);
+        R,r:=RayResidueRing(IL);
+        Append(~ray_res_rings,R);
+        Append(~ray_res_rings_maps,r);
+    end for;
+    D,mRD,mDR:=DirectSum(ray_res_rings);
+    map_ResRing_S:=function(x)
+        return &+[A`NumberFields[i,2](ray_res_rings_maps[i](mDR[i](x))) : i in [1..n]];
+    end function;
+    map_S_ResRing:=function(y)
+        comp:=Components(y);
+        assert #ray_res_rings_maps eq #comp;
+        return &+[mRD[i](comp[i]@@ray_res_rings_maps[i]) : i in [1..n]];
+    end function;
+    map:=map<D -> A | x:->map_ResRing_S(x) , y:->map_S_ResRing(y) >;
+    assert2 forall{ gen: gen in Generators(D) | (map(gen))@@map eq gen };
+    return D,map;
 end intrinsic;
 
 residue_class_field_primitive_element := function(P)
 //given a maximal ideal P in S, returns a generator of (S/P)* as an element of S;
-	S:=Order(P);
-	Q,m:=ResidueRing(S,P);
-	ord:=#Q-1; //ord = #(S/P)-1;
-	assert #Factorization(ord+1) eq 1; // #(S/P) must be a prime power
-	proper_divisors_ord:=Exclude(Divisors(ord),ord);
-	repeat
-		repeat 
-			a:=Random(Q);
-		until a ne Zero(Q);
-	until forall{f : f in proper_divisors_ord | m((a@@m)^f) ne m(One(Algebra(S)))};
-	return a@@m;
+    S:=Order(P);
+    Q,m:=ResidueRing(S,P);
+    ord:=#Q-1; //ord = #(S/P)-1;
+    assert IsPrimePower(#Q); // #(S/P) must be a prime power
+    proper_divisors_ord:=Exclude(Divisors(ord),ord);
+    repeat
+        repeat 
+            a:=Random(Q);
+        until a ne Zero(Q);
+    until forall{f : f in proper_divisors_ord | m((a@@m)^f) ne m(One(Algebra(S)))};
+    assert2 (m((a@@m)^ord) eq m(One(Algebra(S)))); 
+    return a@@m;
 end function;
 
 residue_class_ring_unit_subgroup_generators:=function(S, F)
@@ -117,99 +101,99 @@ residue_class_ring_unit_subgroup_generators:=function(S, F)
 			idp:=idp^2;
 		end while;
 	end for;
-	assert forall{x : x in elts | x in S and not x in F};
+	assert2 forall{x : x in elts | x in S and not x in F};
 	return elts;
 end function;
 
 PicardGroup_prod_internal:=function(O)
 //computes the PicardGroup of a product of order in a product of number fields and returns the group (as a direct product) and a sequence of representatives
-	if assigned O`PicardGroup then return O`PicardGroup[1],O`PicardGroup[2]; end if;
-	A:=Algebra(O);
-	assert IsMaximal(O); // this function should be used only for maximal orders
-	test,O_asProd:=IsProductOfOrders(O);
-	assert test; //O must be a product of orders
-	assert #A`NumberFields eq #O_asProd;
-	groups_maps_fields_maps:=[**];
-	for i in [1..#O_asProd] do
-		L:=A`NumberFields[i];
-		OL:=O_asProd[i];
-		GL,gL:=PicardGroup(OL);
-		assert2 #GL ne 1 and forall{y : y in [gL(z) : z in GL] | MultiplicatorRing(y) eq OL};
-		//this is a detector for bugs for the PicardGroup function.
-		Append(~groups_maps_fields_maps,<GL,gL,L[1],L[2]>);
-	end for;
-	assert #groups_maps_fields_maps eq #A`NumberFields;
-	G,g,Gproj:=DirectSum([T[1] : T in groups_maps_fields_maps]);
+    if assigned O`PicardGroup then return O`PicardGroup[1],O`PicardGroup[2]; end if;
+    A:=Algebra(O);
+    assert IsMaximal(O); // this function should be used only for maximal orders
+    test,O_asProd:=IsProductOfOrders(O);
+    assert test; //O must be a product of orders
+    assert #A`NumberFields eq #O_asProd;
+    groups_maps_fields_maps:=[**];
+    for i in [1..#O_asProd] do
+        L:=A`NumberFields[i];
+        OL:=O_asProd[i];
+        GL,gL:=PicardGroup(OL);
+        assert2 forall{y : y in [gL(z) : z in GL] | MultiplicatorRing(y) eq OL};
+        //this is a detector for bugs for the PicardGroup function.
+        Append(~groups_maps_fields_maps,<GL,gL,L[1],L[2]>);
+    end for;
+    assert #groups_maps_fields_maps eq #A`NumberFields;
+    G,g,Gproj:=DirectSum([T[1] : T in groups_maps_fields_maps]);
 
-	if #G eq 1 then
-		from_G_to_ideals:=function(x)
-			return OneIdeal(O);
-		end function;
-		from_ideals_to_G:=function(y)
-			assert IsInvertible(y);
-			return Zero(G);
-		end function;
-		codomain:=Parent(OneIdeal(O));
-		return G,map<G -> codomain | x:-> from_G_to_ideals(x) , y:->from_ideals_to_G(y) >;
-	else
-		zerosinO:=[ ideal<O|[ T[4](y) : y in Basis(T[2](Zero(T[1])),T[3])]> : T in groups_maps_fields_maps];
-		assert &+zerosinO eq OneIdeal(O);
-		geninO:=[]; //this will contain the the ideals of O corresponding to the generators of G
-		for i in [1..#Generators(G)] do
-			gen:=G.i;
-			gens_inA:=[];
-			for i in [1..#groups_maps_fields_maps] do
-				T:=groups_maps_fields_maps[i];
-				gLi:=T[2];
-				idLi:=gLi(Gproj[i](gen));
-				gens_inA:=gens_inA cat[T[4](g) : g in Basis(idLi,T[3])];
-			end for;
-			gen_O:=ideal<O|gens_inA>;
-			Append(~geninO,gen_O);
-		end for;
-		assert #geninO eq #Generators(G);      
-		rep_idinA:= function(x)
-			coeff:=Eltseq(x);
-			id:=&*[geninO[i]^coeff[i] : i in [1..#coeff]];
-			return id;
-		end function;
-		inverse_map:=function(id)
-			if not IsIntegral(id) then
-				id:=MakeIntegral(id);
-			end if;
-			test,id_asprod:=IsProductOfIdeals(id);
-			assert test;
-			return &+[g[i](id_asprod[i]@@groups_maps_fields_maps[i,2]) : i in [1..#id_asprod]];
-		end function;
-		Codomain:=Parent(rep_idinA(Zero(G)));
-		mapGtoO:=map<G -> Codomain | rep:-> rep_idinA(rep) , y:->inverse_map(y) >; 
-		assert2 forall{a : a in Generators(G)| (mapGtoO(a))@@mapGtoO eq a};
-		O`PicardGroup:=<G,mapGtoO>;
-		return G,mapGtoO;
-	end if;
+    if #G eq 1 then
+        from_G_to_ideals:=function(x)
+            return OneIdeal(O);
+        end function;
+        from_ideals_to_G:=function(y)
+            assert Order(y) eq O;
+            return Zero(G);
+        end function;
+        codomain:=Parent(OneIdeal(O));
+        return G,map<G -> codomain | x:-> from_G_to_ideals(x) , y:->from_ideals_to_G(y) >;
+    else
+        zerosinO:=[ ideal<O|[ T[4](y) : y in Basis(T[2](Zero(T[1])),T[3])]> : T in groups_maps_fields_maps];
+        assert2 &+zerosinO eq OneIdeal(O);
+        geninO:=[]; //this will contain the the ideals of O corresponding to the generators of G
+        for i in [1..#Generators(G)] do
+            gen:=G.i;
+            gens_inA:=[];
+            for i in [1..#groups_maps_fields_maps] do
+                T:=groups_maps_fields_maps[i];
+                gLi:=T[2];
+                idLi:=gLi(Gproj[i](gen));
+                gens_inA:=gens_inA cat[T[4](g) : g in Basis(idLi,T[3])];
+            end for;
+            gen_O:=ideal<O|gens_inA>;
+            Append(~geninO,gen_O);
+        end for;
+        assert #geninO eq #Generators(G);      
+        rep_idinA:= function(x)
+            coeff:=Eltseq(x);
+            id:=&*[geninO[i]^coeff[i] : i in [1..#coeff]];
+            return id;
+        end function;
+        inverse_map:=function(id)
+            if not IsIntegral(id) then
+                id:=MakeIntegral(id);
+            end if;
+            test,id_asprod:=IsProductOfIdeals(id);
+            assert test;
+            return &+[g[i](id_asprod[i]@@groups_maps_fields_maps[i,2]) : i in [1..#id_asprod]];
+        end function;
+        Codomain:=Parent(rep_idinA(Zero(G)));
+        mapGtoO:=map<G -> Codomain | rep:-> rep_idinA(rep) , y:->inverse_map(y) >; 
+        assert2 forall{a : a in Generators(G)| (mapGtoO(a))@@mapGtoO eq a};
+        O`PicardGroup:=<G,mapGtoO>;
+        return G,mapGtoO;
+    end if;
 end function;
 
 IsPrincipal_prod_internal:=function(I)
 //returns if the argument is a principal ideal; if so the function returns also the generator. It works only for products of ideals
-	assert IsMaximal(Order(I)); //this function should be called only for ideals of the maximal order
-	test,I_asProd:=IsProductOfIdeals(I);
-	assert test; //this function should be called only for ideals of the maximal order, hence I is a product
-	S:=Order(I);
-	A:=Algebra(S);
-	gen:=Zero(A);
-	for i in [1..#I_asProd] do
-		IL:=I_asProd[i];
-		L:=A`NumberFields[i];
-		OL,oL:=PicardGroup(Order(IL)); //this is to prevent a bug of the in-built function IsPrincipal (see the changelog)       
-		testL,genL:=IsPrincipal(IL);
-		assert (Zero(OL) eq (IL@@oL)) eq testL;
-		if not testL then
-			return false,_;
-		end if;
-		gen:=gen+L[2](L[1] ! genL);
-	end for;
-	assert ideal<S|gen> eq I;
-	return true,gen;
+    assert IsMaximal(Order(I)); //this function should be called only for ideals of the maximal order
+    test,I_asProd:=IsProductOfIdeals(I);
+    assert test; //this function should be called only for ideals of the maximal order, hence I is a product
+    S:=Order(I);
+    A:=Algebra(S);
+    gen:=Zero(A);
+    for i in [1..#I_asProd] do
+        IL:=I_asProd[i];
+        L:=A`NumberFields[i];
+        OL,oL:=PicardGroup(Order(IL)); //this is to prevent a bug of the in-built function IsPrincipal (see the changelog)       
+        testL,genL:=IsPrincipal(IL);
+        assert2 (Zero(OL) eq (IL@@oL)) eq testL;
+        if not testL then
+            return false,_;
+        end if;
+        gen:=gen+L[2](L[1] ! genL);
+    end for;
+    assert2 ideal<S|gen> eq I;
+    return true,gen;
 end function;
 
 function CoprimeSplittings(n)
@@ -252,211 +236,249 @@ function InverseLcm(n)
     return results;
 end function;
 
+
 intrinsic PicardGroup(S::AlgAssVOrd : LMFDB_generators := false) -> GrpAb, Map
 {return the PicardGroup of the order S, which is not required to be maximal, and a map from the PicardGroup to a set of representatives of the ideal classes.
     If LMDFB_generators is set, then we iteratively choose to map generators to the "smallest" choice, starting from the largest-order generator.  Here the sorting of ideals is given by the ordering defined by Cremona, Page and Sutherland.}
-    if assigned S`PicardGroup then return S`PicardGroup[1],S`PicardGroup[2]; end if;
-    if IsMaximal(S) then return PicardGroup_prod_internal(S); end if;
-    require IsFiniteEtale(Algebra(S)): "the algebra of definition must be finite and etale over Q";
-    A:=Algebra(S);
-    O:=MaximalOrder(A);
-    GO,gO:=PicardGroup_prod_internal(O); //C, mC
-    F:=Conductor(S);
-    FO:=ideal<O|ZBasis(F)>; //Fm
-    gens_GO_in_S:=[]; //coprime with FO, in S and then meet S
-    gens_GO_in_O:=[]; //coprime with FO, in O
-    if #GO gt 1 then
-        for i in [1..#Generators(GO)] do
-            I:=gO(GO.i);
-            c:=CoprimeRepresentative(I,FO);
-            cI:=c*I;
-            assert IsIntegral(cI);
-            cISmeetS:=ideal<S|ZBasis(cI)> meet S;
-            assert IsIntegral(cISmeetS);
-            Append(~gens_GO_in_S,cISmeetS);
-            Append(~gens_GO_in_O,cI);//used in building relDglue
-        end for;
-
-        mGO_to_S:=function(rep)
-            coeff:=Eltseq(rep);
-            idS:=&*[(gens_GO_in_S[i])^coeff[i] : i in [1..#coeff] ];
-            return idS;
-        end function;
-
-        mGO_to_O:=function(rep)
-            coeff:=Eltseq(rep);
-            idO:=&*[(gens_GO_in_O[i])^coeff[i] : i in [1..#coeff] ];
-            return idO;
-        end function;
-
-    else
-        GO:=FreeAbelianGroup(0);
-        mGO_to_S:=function(rep)
-            idS:=OneIdeal(S);
-            return idS;
-        end function;
-
-        mGO_to_O:=function(rep)
-            idO:=OneIdeal(O);
-            return idO;
-        end function;
-
-    end if;
-
-    R,r:=ResidueRingUnits(O,FO); // G, mG
-    Sgens:=residue_class_ring_unit_subgroup_generators(S,F); // ogens
-    UO,uO:=UnitGroup2(O); // Um, mUm
-
-    H:=FreeAbelianGroup(#Generators(GO));
-    D, mRD, mHD, mDR, mDH := DirectSum(R,H); // D, mGD, mHD, mDG, mDH
-    relDresidue:=[mRD(x@@r) : x in Sgens];
-    relDunits:=[mRD(uO(x)@@r)  : x in Generators(UO)];
-    // glue R and GO
-    relDglue := [];
-    assert #gens_GO_in_S eq #InvariantFactors(GO);
-    for i in [1..#gens_GO_in_S] do
-        is_princ, gen := IsPrincipal(gens_GO_in_O[i]^InvariantFactors(GO)[i]);
-        assert is_princ;
-        Append(~relDglue,-mRD(gen@@r)+mHD(H.i*InvariantFactors(GO)[i]));
-    end for;
-
-    P, mDP := quo<D|relDresidue cat relDunits cat relDglue>;
-    gens_P_in_D:=[P.i@@mDP : i in [1..#Generators(P)]];
-    if #P gt 1 then
-        generators_ideals:=[];
-        for gen in gens_P_in_D do
-            id1:=ideal<S|ZBasis(ideal<O|r(mDR(gen))>)> meet S;
-            id2:=mGO_to_S(mDH(gen));
-            gen_inS:=id1*id2;
-            Append(~generators_ideals,gen_inS);
-        end for;
-    else
-        return P,map<P->[OneIdeal(S)] | rep:->OneIdeal(S) >;
-    end if;
-
-    disc_log_picard_group_inner := function(id)
-        assert IsIntegral(id);
-        //id:=CoprimeRepresentative(id,F)*id;
-        idO := O!id;
-        assert IsIntegral(idO);
-        if not IsCoprime(id,FO) then
-            error "PicardGroup: Ideal must be coprime to the conductor";
-        end if;
-        GOrep := idO@@gO;
-        GO;
-        GOrep,-GOrep;
-        Helt:=-(H!Eltseq(GOrep));
-        Helt;
-        idrel1:=mGO_to_O(Helt);
-        assert IsIntegral(idrel1);
-        idrel:=(idrel1)*idO;
-        assert IsIntegral(idrel);
-        is_princ, elt := IsPrincipal(idrel);
-        //is_princ, elt := IsPrincipal(mGO_to_O(-(H!Eltseq(GOrep)))*idO);
-        //is_princ, elt :=IsPrincipal_prod_internal((O ! mGO_to_S((H!Eltseq(GOrep))))^-1*idO);
-        //is_princ, elt :=IsPrincipal_prod_internal((O!(mGO_to_S(-(H!Eltseq(GOrep)))))*idO);
-        //elt,ZBasis(O);
-        assert (1/elt) in O or elt in O;
-        if not is_princ then
-            error "PicardGroup: Failure in discrete logarithm.";
-        end if;
-        return GOrep, elt;
-    end function;
-
-    disc_log_picard_group := function(id)
-        GOrep, elt := disc_log_picard_group_inner(id);
-        Rrep := elt@@r;
-        return mDP(mRD(Rrep)+mHD(H!Eltseq(GOrep)));
-    end function;
-
+    //skip_comp:=false;
     if LMFDB_generators then
-        gens := []; // minimal norm ideals providing a generating set for P
-        q := 2; // q = p^k
-        p := 2;
-        k := 1;
+        if assigned S`PicardGroup_LMFDB then return S`PicardGroup_LMFDB[1],S`PicardGroup_LMFDB[2]; end if;
+        //if assigned S`PicardGroup then P:=S`PicardGroup[1]; pmap:=S`PicardGroup[2]; skip_comp:=true; end if;
+    else
+        if assigned S`PicardGroup then return S`PicardGroup[1],S`PicardGroup[2]; end if;
+    end if;
 
+    //if not skip_comp then
+        if IsMaximal(S) then
+            P, pmap := PicardGroup_prod_internal(S);
+            O:=S;
+            F:=OneIdeal(S);
+        else
+            require IsFiniteEtale(Algebra(S)): "the algebra of definition must be finite and etale over Q";
+            A:=Algebra(S);
+            O:=MaximalOrder(A);
+            GO,gO:=PicardGroup_prod_internal(O); //C, mC
+            F:=Conductor(S);
+            FO:=ideal<O|ZBasis(F)>; //Fm
+            gens_GO_in_S:=[]; //coprime with FO, in S and then meet S
+            gens_GO_in_O:=[]; //coprime with FO, in O, Cgen
+            if #GO gt 1 then
+                for i in [1..#Generators(GO)] do
+                    I:=gO(GO.i);
+                    //c:=CoprimeRepresentative(I,FO);
+                    c:=CoprimeRepresentative(I,MinimalInteger(FO)*O);
+                    cI:=c*I;
+                    cISmeetS:=ideal<S|ZBasis(cI)> meet S;
+                    Append(~gens_GO_in_S,cISmeetS);
+                    Append(~gens_GO_in_O,cI);//used in building relDglue
+                end for;
+
+                mGO_to_S:=function(rep)
+                    coeff:=Eltseq(rep);
+                    idS:=&*[(gens_GO_in_S[i])^coeff[i] : i in [1..#coeff] ];
+                    return idS;
+                end function;
+                mGO_to_O:=function(rep)
+                    coeff:=Eltseq(rep);
+                    assert #coeff eq #gens_GO_in_O;
+                    idO:=&*[(gens_GO_in_O[i])^coeff[i] : i in [1..#coeff] ];
+                    return idO;
+                end function;
+            else
+                GO:=FreeAbelianGroup(0);
+                mGO_to_S:=function(rep)
+                    idS:=OneIdeal(S);
+                    return idS;
+                end function;
+                mGO_to_O:=function(rep)
+                    idO:=OneIdeal(O);
+                    return idO;
+                end function;
+            end if;
+
+            R,r:=ResidueRingUnits(O,FO); // G, mG
+            Sgens:=residue_class_ring_unit_subgroup_generators(S,F); // ogens //generators in S of (S/F)*
+            UO,uO:=UnitGroup2(O); // Um, mUm //TODO ADD VarArgs about GRH bounds and so!!!
+
+            H:=FreeAbelianGroup(#Generators(GO));
+            D, mRD, mHD, mDR, mDH := DirectSum(R,H); // D, mGD, mHD, mDG, mDH
+            relDresidue:=[mRD(x@@r) : x in Sgens];
+            relDunits:=[mRD(uO(x)@@r)  : x in Generators(UO)];
+            // glue R and GO
+            relDglue := [];
+            assert #gens_GO_in_S eq #InvariantFactors(GO);
+            for i in [1..#gens_GO_in_S] do
+                is_princ, gen := IsPrincipal_prod_internal(gens_GO_in_O[i]^InvariantFactors(GO)[i]);
+                assert is_princ;
+                Append(~relDglue,-mRD(gen@@r)+mHD(H.i*InvariantFactors(GO)[i]));
+            end for;
+
+            P, mDP := quo<D|relDresidue cat relDunits cat relDglue>;
+            gens_P_in_D:=[P.i@@mDP : i in [1..#Generators(P)]];
+            if #P gt 1 then
+                generators_ideals:=[];
+                for gen in gens_P_in_D do
+                    id1:=ideal<S|ZBasis(ideal<O|r(mDR(gen))>)> meet S;
+                    id2:=mGO_to_S(mDH(gen));
+                    gen_inS:=id1*id2;
+                    Append(~generators_ideals,gen_inS);
+                end for;
+            else
+                return P,map<P->Parent(OneIdeal(S)) | rep:->OneIdeal(S),
+                                                      id:->Zero(P)>;
+            end if;
+
+            disc_log_picard_group:=function(id)
+            // (crep*id)^-1 is coprime with F
+                crep:=1/(CoprimeRepresentative(id^-1,F));
+                idO:=O!(crep*id); //idO is coprime with FO
+                GOrep:=idO@@gO;
+                J:=mGO_to_O((H!Eltseq(GOrep))); //no minus signs, so J is coprime with FO
+                assert2 IsCoprime(J,FO);
+                prod:=(idO^-1)*J; //prod is coprime with FO...
+                isprinc,elt:=IsPrincipal_prod_internal(prod);
+                assert2 IsCoprime(elt*O,FO); //..hence elt is in the image r:R->Pic(S)
+                Rrep:=elt@@r;
+                rep_P:=mDP(-mRD(Rrep)+mHD(H!Eltseq(GOrep)));//[I]=-[xO meet S]+GOrep
+                return rep_P;
+            end function;
+
+            representative_picard_group := function(rep)
+                repseq := Eltseq(rep);
+                return &*[generators_ideals[i]^repseq[i]:i in [1..#generators_ideals]];
+            end function;
+
+            cod:=Parent(representative_picard_group(Zero(P)));
+            pmap:=map<P -> cod | rep :-> representative_picard_group(rep),
+                                 id :-> disc_log_picard_group(id) >;
+        end if;
+    //end if;
+    
+    ReorderGenerators:=function(P,pmap)
+        // We try to choose generators in a canonical way.
+        gens := []; // minimal norm ideals providing a generating set for P
+        A:=Algebra(S);
+        /*if IsMaximal(S) then
+            F := OneIdeal(S);
+        end if;*/ 
+        generators_ideals := [pmap(I) : I in Generators(P)];
         _, O_asProd := IsProductOfOrders(O);
         _, F_asProd := IsProductOfIdeals(F);
         F_indexes := [Index(MultiplicatorRing(I),I) : I in F_asProd];
         primes_above_p := AssociativeArray(); // <i, p> -> list of primes above p in O_asProd[i]
 
         best_of_order := AssociativeArray(); // order -> j, where prime_list[j] is the smallest prime ideal with specified order in picard group
-        prime_list := []; // primes that lift to elements of P that increase our subgroup
-        prime_indexes := []; // index of each prime in the maximal order
+        prime_list := []; // primes that lift to elements of P that increase our subgroup (and have the right order mod Psub in later steps)
+        prime_indexes := []; // index of each prime in S
         prime_lifts := []; // discrete log of each prime, as an element of P
-        Psub, _ := sub<P | >; // subgroup of P generated by prime_lifts, and once Psub = P we stop
+        Psub := sub<P |>;
         // GOAL: fill in prime_list, prime_indexes, prime_lifts and best_of_order
-        while true do
-            // we will loop over prime powers q
-            // and then we compute primes_of_norm_q, where q = p^k
-            primes_of_norm_q := [];
-            // if k = 1, first we deal with split primes above p
-            if k eq 1 then
-                for i in [1..#O_asProd] do
-                    OL := O_asProd[i];
-                    FL := F_asProd[i];
-                    if F_indexes[i] mod p eq 0 then
-                        // Remove primes dividing the conductor
-                        primes_above_p[<i,p>] := [I : I in SplitPrime(OL, p) | One(OL) in I+FL];
-                    else
-                        // Remove the last element, since its lift is automatically in the span of the others
-                        primes_above_p[<i,p>] := Prune(SplitPrime(OL, p)); //SplitPrime is defined in the sorting module
-                    end if;
-                end for;
-            end if;
-            for i in [1..#O_asProd] do
-                OL := O_asProd[i];
-                for prime in primes_above_p[<i,p>] do
-                    // create a Oprime = \prod_j prime if i eq j else 1
-                    // where Norm(Oprime) = q = p^k
-                    if InertiaDegree(prime) eq k then
-                        Oprime_gens := []; // ??
-                        for j in [1..#O_asProd] do
-                            // mL: L -> A
-                            mL := A`NumberFields[i,2];
-                            if i eq j then
-                                Oprime_gens cat:= [mL(x) : x in Generators(prime)];
-                            else
-                                L := A`NumberFields[i,1];
-                                Append(~Oprime_gens, One(L));
-                            end if;
-                        end for;
-                        Oprime := ideal<O | Oprime_gens>;
-                        Append(~primes_of_norm_q, Oprime);
-                    end if;
-                end for;
-            end for;
-            for i in [1..#primes_of_norm_q] do
-                prime := primes_of_norm_q[i];
-                plift := disc_log_picard_group(prime);
-                if plift in Psub then
-                    continue;
-                end if;
-                Append(~prime_list, prime);
-                Append(~prime_index, Index(prime));
-                Append(~prime_lifts, plift);
-                ord := Order(plift);
-                if not IsDefined(best_of_order, ord) then
-                    best_of_order[ord] := #prime_list;
-                end if;
-                Psub := sub<P|Psub,plift>;
-            end for;
-            if Order(Psub) eq Order(P) then
-                break;
-            end if;
+        // We want the primes in prime_list to generate P, and to have order in P/Psub equal to their order in P.
+        expand_factor_base := procedure(~q, curquo, ~primes_above_p, ~best_of_order, ~prime_list, ~prime_indexes, ~prime_lifts, ~new_Pgens)
+            // subgroup of P generated by prime_lifts and already chosen generators
+            // we stop once Psub = P
+            Psub, _ := sub<P | prime_lifts cat new_Pgens>;
             while true do
-                q +:= 1;
-                b, p, k := IsPrimePower(q);
-                if b then
+                if Order(Psub) eq Order(P) then
                     break;
                 end if;
+                while true do
+                    q +:= 1;
+                    b, p, k := IsPrimePower(q);
+                    if b then // q is a prime power
+                        break;
+                    end if;
+                end while;
+"loop", q;
+                // we will loop over prime powers q
+                // and then we compute primes_of_norm_q, where q = p^k
+                primes_of_norm_q := [];
+                // if k = 1, we create a list of split primes above p.
+                // this is used to create a list of primes of norm q for all powers of p.
+                if k eq 1 then
+                    for i in [1..#O_asProd] do
+                        OL := O_asProd[i];
+                        L:=NumberField(OL);
+                        FL := F_asProd[i];
+                        //SplitPrime is defined in the sorting module
+                        if F_indexes[i] mod p eq 0 then
+                            // Remove primes dividing the conductor
+                            primes_above_p[<i,p>] := [I : I in SplitPrime(L, p) | One(OL) in I+FL];
+                        else
+                            // Keep the last element, even though its lift is automatically in the span of the others, since it might have a better order
+                            primes_above_p[<i,p>] := SplitPrime(L, p);
+                        end if;
+                    end for;
+                end if;
+                for i in [1..#O_asProd] do
+                    OL := O_asProd[i];
+                    for prime in primes_above_p[<i,p>] do
+                        // create a Oprime = \prod_j prime if i eq j else 1
+                        // where Norm(Oprime) = q = p^k
+                        if InertiaDegree(prime) eq k then
+                            Oprime_gens := []; // ??
+                            for j in [1..#O_asProd] do
+                                // mL: L -> A
+                                mL := A`NumberFields[i,2];
+                                if i eq j then
+                                    Oprime_gens cat:= [mL(x) : x in Generators(prime)];
+                                else
+                                    L := A`NumberFields[i,1];
+                                    Append(~Oprime_gens, One(L));
+                                end if;
+                            end for;
+                            Oprime := ideal<O | Oprime_gens>;
+                            Append(~primes_of_norm_q, (S!Oprime meet S));
+                        end if;
+                    end for;
+                end for;
+                for i in [1..#primes_of_norm_q] do
+                    prime := primes_of_norm_q[i];
+                    plift := prime@@pmap;
+                    if plift in Psub then
+                        continue;
+                    end if;
+                    pproj := curquo(plift);
+                    ord := Order(plift);
+                    if Order(pproj) ne ord then
+                        // As we build up a list of canonical generators,
+                        // we ensure that each prime has the same order modulo the quotient
+                        // of the already chosen generators as it does in the whole class group
+                        continue;
+                    end if;
+                    Append(~prime_list, prime);
+                    Append(~prime_indexes, Integers() ! Index(Order(prime),prime));
+                    Append(~prime_lifts, plift);
+                    if not IsDefined(best_of_order, ord) then
+                        best_of_order[ord] := #prime_list;
+                    end if;
+                    Psub := sub<P|Psub,plift>;
+                end for;
             end while;
-        end while;
-        // We've now constructed our factor base of primes
-        Pquo := P;
-        Pgens := Generators(P);
-        for gen_num in [#Pgens..1 by -1] do
-            gen_ord := Order(Pgens[gen_num]);
+        end procedure;
+        trim_factor_base := procedure(curquo, ~best_of_order, ~prime_list, ~prime_indexes, ~prime_lifts)
+            // Remove primes that are no longer used in creating generators.
+            // We remove a prime if its order in the quotient by the already chosen generators drops
+
+            // Removing entries will wreck the indexing of best_of_order
+            best_of_order := AssociativeArray();
+
+            i := 1;
+            while i le #prime_list do
+                ord := Order(prime_lifts[i]);
+                if Order(curquo(prime_lifts[i])) ne ord then
+                    Remove(~prime_list, i);
+                    Remove(~prime_indexes, i);
+                    Remove(~prime_lifts, i);
+                else
+                    if not IsDefined(best_of_order, ord) then
+                        best_of_order[ord] := i;
+                    end if;
+                    i +:= 1;
+                end if;
+            end while;
+        end procedure;
+        find_best_gen_of_order := function(gen_ord, best_of_order, prime_list, prime_indexes, prime_lifts)
             possibilities := [];
             for orders in InverseLcm(gen_ord) do
                 if &and[IsDefined(best_of_order, ord): ord in orders] then
@@ -465,7 +487,7 @@ intrinsic PicardGroup(S::AlgAssVOrd : LMFDB_generators := false) -> GrpAb, Map
             end for;
             best_norm := Infinity();
             for poss in possibilities do
-                cur_norm := &*[prime_index[i] : i in poss];
+                cur_norm := &*[prime_indexes[i] : i in poss];
                 if cur_norm lt best_norm then
                     best_norm := cur_norm;
                     best := [Sort(poss)];
@@ -475,46 +497,45 @@ intrinsic PicardGroup(S::AlgAssVOrd : LMFDB_generators := false) -> GrpAb, Map
             end for;
             best := Sort(best);
             best := best[1];
-            best_ideal := &*[prime_list[i] : i in best];
+            return &+[prime_lifts[i]: i in best], &*[prime_list[i] : i in best];
+        end function;
+
+        // We construct an initial factor base
+        curquo := map<P -> P|x :-> x, y :-> y>;
+        new_Pgens := [];
+        q := 1;
+        expand_factor_base(~q, curquo, ~primes_above_p, ~best_of_order, ~prime_list, ~prime_indexes, ~prime_lifts, ~new_Pgens);
+
+        // Now choose new generators
+        // Here we assume that the generators have orders as returned by AbelianInvariants.
+        Pgens := Generators(P);
+        for gen_num in [#Pgens..1 by -1] do
+            gen_ord := Order(P.gen_num);
+            best_elt, best_ideal := find_best_gen_of_order(Order(P.gen_num), best_of_order, prime_list, prime_indexes, prime_lifts);
             Insert(~gens, 1, best_ideal);
             if gen_num eq 1 then
                 break;
             end if;
-            best_elt := &+[prime_lifts[i]: i in best];
-            new_prime_list := [];
-            new_prime_index := [];
-            new_prime_lifts := [];
-            best_of_order := AssociativeArray();
-            Pquo, quo_proj := quo<Pquo|best_elt>;
-            Psub, _ := sub<Pquo|>;
-            for i in [1..#prime_list] do
-                new_lift := quo_proj(prime_lifts[i]);
-                if new_lift in Psub then
-                    continue;
-                end if;
-                Append(~new_prime_list, prime_list[i]);
-                Append(~new_prime_index, prime_index[i]);
-                Append(~new_prime_lifts, new_lift);
-                ord := Order(new_lift);
-                if not IsDefined(best_of_order, ord) then
-                    best_of_order[ord] := #new_prime_list;
-                end if;
-                Psub := sub<P|Psub,new_lift>;
-            end for;
+            Insert(~new_Pgens, 1, best_elt);
+            _, curquo := quo<P|new_Pgens>;
+            trim_factor_base(curquo, ~best_of_order, ~prime_list, ~prime_indexes, ~prime_lifts);
+            expand_factor_base(~q, curquo, ~primes_above_p, ~best_of_order, ~prime_list, ~prime_indexes, ~prime_lifts, ~new_Pgens);
         end for;
-        generators_ideals := gens;
-    end if;
-
-    representative_picard_group := function(rep)
-        repseq := Eltseq(rep);
-        return &*[generators_ideals[i]^repseq[i]:i in [1..#generators_ideals]];
+        return gens;
     end function;
 
-    cod:=Parent(representative_picard_group(Zero(P)));
-    pmap:=map<P -> cod | rep :-> representative_picard_group(rep),
-                         id :-> disc_log_picard_group(id) >;
-    S`PicardGroup:=<P,pmap>;
-    return P,pmap;
+
+    if LMFDB_generators then
+        newgens := ReorderGenerators(P,pmap);
+        Paut := hom<P->P| [gen@@pmap : gen in newgens]>;
+        assert #Kernel(Paut) eq 1;
+        pmap := Paut * pmap;
+        S`PicardGroup_LMFDB:=<P,pmap>;
+    else
+        S`PicardGroup:=<P,pmap>;
+    end if;
+
+        return P,pmap;
 end intrinsic;
 
 UnitGroup2_prod_internal:=function(O)
@@ -528,112 +549,113 @@ UnitGroup2_prod_internal:=function(O)
 	U_asProd:=[];
 	u_asProd:=[**];
 	for OL in O_asProd do
-		U,u:=UnitGroup(OL);
+		U,u:=UnitGroup(OL : GRH:=true );
 		Append(~U_asProd,U);
 		Append(~u_asProd,u);
 	end for;
 	Udp,udp,proj_Udp:=DirectSum(U_asProd);
 	gensinA:=[&+[A`NumberFields[j,2](u_asProd[j](proj_Udp[j](Udp.i))) : j in [1..#U_asProd]] : i in [1..#Generators(Udp)] ];
+  
+    rep_inA:=function(rep)
+        coeff:=Eltseq(rep);
+        return &*[gensinA[i]^coeff[i] : i in [1..#coeff]];
+    end function;
 
-	rep_inA:=function(rep)
-		coeff:=Eltseq(rep);
-		return &*[gensinA[i]^coeff[i] : i in [1..#coeff]];
-	end function;
+    disc_log:=function(x)
+        comp_x:=Components(A ! x);
+        x_in_Udp:=&*[ udp[i](comp_x[i]@@u_asProd[i]) : i in [1..#comp_x] ];
+        return x_in_Udp;
+    end function;
 
-	disc_log:=function(x)
-		comp_x:=Components(A ! x);
-		x_in_Udp:=&*[ udp[i](comp_x[i]@@u_asProd[i]) : i in [1..#comp_x] ];
-		return x_in_Udp;
-	end function;
-
-	maptoA:=map<Udp -> O | rep :-> rep_inA(rep) , y :-> disc_log(y) >;
-	O`UnitGroup:=<Udp,maptoA>;
-	return Udp,maptoA;
+    maptoA:=map<Udp -> O | rep :-> rep_inA(rep) , y :-> disc_log(y) >;
+    O`UnitGroup:=<Udp,maptoA>;
+    return Udp,maptoA;
 end function;
 
 intrinsic UnitGroup2(S::AlgAssVOrd) -> GrpAb, Map
 {return the unit group of a order in a etale algebra}
-	if assigned S`UnitGroup then return S`UnitGroup[1],S`UnitGroup[2]; end if;
-	if IsMaximal(S) then return UnitGroup2_prod_internal(S); end if;
-	require IsFiniteEtale(Algebra(S)): "the algebra of definition must be finite and etale over Q";
-	A:=Algebra(S);
-	require assigned A`NumberFields: "the order must lie in a product of number fields";
-	O:=MaximalOrder(S);
-	UO,uO:=UnitGroup2_prod_internal(O);
-	F:=Conductor(S);
-	FO:=ideal<O|ZBasis(F)>;
+    if assigned S`UnitGroup then return S`UnitGroup[1],S`UnitGroup[2]; end if;
+    if IsMaximal(S) then return UnitGroup2_prod_internal(S); end if;
+    require IsFiniteEtale(Algebra(S)): "the algebra of definition must be finite and etale over Q";
+    A:=Algebra(S);
+    require assigned A`NumberFields: "the order must lie in a product of number fields";
+    O:=MaximalOrder(Algebra(S));
+    UO,uO:=UnitGroup2_prod_internal(O); //TODO add varargs
+    F:=Conductor(S);
+    FO:=ideal<O|ZBasis(F)>;
 
-	//Let's build B=(O/FO)^*/(S/F)^*
-	R,r:=ResidueRingUnits(O,FO);
-	gens_SF:=residue_class_ring_unit_subgroup_generators(S,F);
-	B,b:=quo<R| [ a@@r : a in gens_SF ]>;
+    //Let's build B=(O/FO)^*/(S/F)^*
+    R,r:=ResidueRingUnits(O,FO);
+    gens_SF:=residue_class_ring_unit_subgroup_generators(S,F);
+    B,b:=quo<R| [ a@@r : a in gens_SF ]>;
 
-	img_gensUO_in_B:=[ b(uO(UO.i)@@r) : i in [1..#Generators(UO)] ];
-	m:=hom<UO -> B | img_gensUO_in_B >;
-	P:=Kernel(m);
-	gens_P_in_A:=[uO(UO ! P.i) : i in [1..#Generators(P)] ];
-	p_codomain:=Parent(gens_P_in_A[1]);
+    img_gensUO_in_B:=[ b(uO(UO.i)@@r) : i in [1..#Generators(UO)] ];
+    m:=hom<UO -> B | img_gensUO_in_B >;
+    P:=Kernel(m);
+    gens_P_in_A:=[uO(UO ! P.i) : i in [1..#Generators(P)] ];
+    p_codomain:=Parent(gens_P_in_A[1]);
 
-	map_P_to_S:=function(rep)
-		coeff:=Eltseq(rep);
-		assert #coeff eq #gens_P_in_A;
-		elt:=&*[gens_P_in_A[i]^coeff[i] : i in [1..#coeff]];
-		return elt;
-	end function;
+    map_P_to_S:=function(rep)
+        coeff:=Eltseq(rep);
+        assert #coeff eq #gens_P_in_A;
+        elt:=&*[gens_P_in_A[i]^coeff[i] : i in [1..#coeff]];
+        return elt;
+    end function;
 
-	map_S_to_P:=function(y)
-		elt := P ! (y@@uO);
-		return elt;
-	end function;
-	p:=map<P -> p_codomain | x:->map_P_to_S(x), y:->map_S_to_P(y)  >;
-	S`UnitGroup:=<P,p>;
-	return P,p;
+    map_S_to_P:=function(y)
+        elt := P ! (y@@uO);
+        return elt;
+    end function;
+    p:=map<P -> p_codomain | x:->map_P_to_S(x), y:->map_S_to_P(y)  >;
+    S`UnitGroup:=<P,p>;
+    return P,p;
 end intrinsic;
 
 
 intrinsic IsPrincipal(I1::AlgAssVOrdIdl)->BoolElt, AlgAssElt
 {return if the argument is a principal ideal; if so the function returns also the generator.}
-	require IsFiniteEtale(Algebra(I1)): "the algebra of definition must be finite and etale over Q";
-	if not IsInvertible(I1) then return false,_; end if;
-	S:=Order(I1);    
-	if IsMaximal(S) then
-		return IsPrincipal_prod_internal(I1);
-	end if;
-	A:=Algebra(S);
-	O:=MaximalOrder(A);
-	F:=Conductor(S);
-	FO:=ideal<O|ZBasis(F)>;
-	cop:=CoprimeRepresentative(I1,F);
-	I:=cop*I1;
-	IO:=ideal<O|ZBasis(I)>; 
-	is_princ_IO,gen_IO:=IsPrincipal_prod_internal(IO);
-	if not is_princ_IO then
-		return false,_;
-	end if;
-	R,r:=ResidueRingUnits(O,FO);
-	if Order(R) eq 1 then
-		assert ideal<S|gen_IO> eq I;
-		return true, gen_IO*cop^-1;
-	end if;
-	UO,uO:=UnitGroup2(O);
-	Sgens:=residue_class_ring_unit_subgroup_generators(S,F);
-	B,b:=quo<R|[gen@@r : gen in Sgens]>;
-	gens_UO_inB:=[ b(uO(UO.i)@@r) : i in [1..#Generators(UO)]  ];
-	h:=hom<UO -> B | gens_UO_inB >;
-	hUO:=Image(h);
-	if not b(gen_IO@@r) in hUO then
-		return false,_;
-	end if;
-	//now we know that I is principal. let's find a generator
-	UQ,qQ:=quo<UO|Kernel(h)>;  //UQ = O*/S*
-	alpha:=hom<UQ -> B | [UQ.i@@qQ @uO @@r @b : i in [1..#Generators(UQ)]]>;
-	is_princ,elt:=HasPreimage(gen_IO@@r@b,alpha);
-	if is_princ then
-		gen_I:=gen_IO*(elt@@qQ@uO)^-1;
-		gen_I1:=gen_I*cop^-1;
-		assert ideal<S|gen_I1> eq I1;
-		return true,gen_I1;
-	else
-		return false, _;
-	end if;  
+//TODO Test vs LLL
+    require IsFiniteEtale(Algebra(I1)): "the algebra of definition must be finite and etale over Q";
+    if not IsInvertible(I1) then return false,_; end if;
+    S:=Order(I1);    
+    if IsMaximal(S) then
+        return IsPrincipal_prod_internal(I1);
+    end if;
+    A:=Algebra(S);
+    O:=MaximalOrder(A);
+    F:=Conductor(S);
+    FO:=ideal<O|ZBasis(F)>;
+    cop:=CoprimeRepresentative(I1,F);
+    I:=cop*I1;
+    IO:=ideal<O|ZBasis(I)>; 
+    is_princ_IO,gen_IO:=IsPrincipal_prod_internal(IO);
+    if not is_princ_IO then
+        return false,_;
+    end if;
+    R,r:=ResidueRingUnits(O,FO);
+    if Order(R) eq 1 then
+        assert2 ideal<S|gen_IO> eq I;
+        return true, gen_IO*cop^-1;
+    end if;
+    UO,uO:=UnitGroup2(O); //TODO add GRH
+    Sgens:=residue_class_ring_unit_subgroup_generators(S,F);
+    B,b:=quo<R|[gen@@r : gen in Sgens]>;
+    gens_UO_inB:=[ b(uO(UO.i)@@r) : i in [1..#Generators(UO)]  ];
+    h:=hom<UO -> B | gens_UO_inB >;
+    hUO:=Image(h);
+    if not b(gen_IO@@r) in hUO then
+        return false,_;
+    end if;
+    //now we know that I is principal. let's find a generator
+    UQ,qQ:=quo<UO|Kernel(h)>;  //UQ = O*/S*
+    alpha:=hom<UQ -> B | [UQ.i@@qQ @uO @@r @b : i in [1..#Generators(UQ)]]>;
+    is_princ,elt:=HasPreimage(gen_IO@@r@b,alpha);
+    if is_princ then
+        gen_I:=gen_IO*(elt@@qQ@uO)^-1;
+        gen_I1:=gen_I*cop^-1;
+        assert2 ideal<S|gen_I1> eq I1;
+        return true,gen_I1;
+    else
+        return false, _;
+    end if;  
 end intrinsic;
